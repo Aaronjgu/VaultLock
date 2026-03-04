@@ -3,6 +3,7 @@ import string
 import sys
 import select
 import des_encryption
+import csv
 
 def main():
     print("Welcome to VaultLock. Please enter your password.")
@@ -13,7 +14,7 @@ def main():
         print("Access denied.")
         exit()
 
-    def timed_input(prompt, timeout=10000):
+    def timed_input(prompt, timeout=15):
         print(prompt, end='', flush=True)
         ready, _, _ = select.select([sys.stdin], [], [], timeout)
         if ready:
@@ -61,13 +62,15 @@ def main():
             try:
                 found = False
                 with open("dataFile.txt", "r") as f:
-                    for line in f:
-                        stored_login_name, encrypted_password = line.strip().split(',', 1)
-                        if stored_login_name == login_name:
-                            decrypted_password = des_encryption.decrypt_password(encrypted_password, password)
-                            print("Decrypted password for login", login_name, "is:", decrypted_password)
-                            found = True
-                            break
+                    reader = csv.reader(f)
+                    for row in reader:
+                        if len(row) == 2:
+                            stored_login_name, encrypted_password = row
+                            if stored_login_name == login_name:
+                                decrypted_password = des_encryption.decrypt_password(encrypted_password, password)
+                                print("Decrypted password for login", login_name, "is:", decrypted_password)
+                                found = True
+                                break
                 if not found:
                     print("Login not found.")
             except FileNotFoundError:
@@ -81,8 +84,9 @@ def main():
                 if hasattr(des_encryption, "encrypt_password"):
                     encrypted_password = des_encryption.encrypt_password(new_password, password)
                     print("Encrypted password:", encrypted_password)
-                    with open("dataFile.txt", "a") as f:
-                        f.write(f"{new_login.lower()},{encrypted_password}\n")
+                    with open("dataFile.txt", "a", newline='') as f:
+                        writer = csv.writer(f)
+                        writer.writerow([new_login.lower(), encrypted_password])
                     print("Login saved successfully.")
                 else:
                     print("Error: encrypt_password function not found in des_encryption module.")
