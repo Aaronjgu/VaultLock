@@ -67,10 +67,14 @@ def main():
                         if len(row) == 2:
                             stored_login_name, encrypted_password = row
                             if stored_login_name == login_name:
-                                decrypted_password = des_encryption.decrypt_password(encrypted_password, password)
-                                print("Decrypted password for login", login_name, "is:", decrypted_password)
-                                found = True
-                                break
+                                try:
+                                    decrypted_password = des_encryption.decrypt_password(encrypted_password, password)
+                                    print("Decrypted password for login", login_name, "is:", decrypted_password)
+                                    found = True
+                                    break
+                                except Exception as decrypt_error:
+                                    print(f"Error decrypting password: {decrypt_error}")
+                                    continue
                 if not found:
                     print("Login not found.")
             except FileNotFoundError:
@@ -82,12 +86,15 @@ def main():
             new_password = timed_input("Enter password: ")
             try:
                 if hasattr(des_encryption, "encrypt_password"):
-                    encrypted_password = des_encryption.encrypt_password(new_password, password)
-                    print("Encrypted password:", encrypted_password)
-                    with open("dataFile.txt", "a", newline='') as f:
-                        writer = csv.writer(f)
-                        writer.writerow([new_login.lower(), encrypted_password])
-                    print("Login saved successfully.")
+                    try:
+                        encrypted_password = des_encryption.encrypt_password(new_password, password)
+                        print("Encrypted password:", encrypted_password)
+                        with open("dataFile.txt", "a", newline='') as f:
+                            writer = csv.writer(f)
+                            writer.writerow([new_login.lower(), encrypted_password])
+                        print("Login saved successfully.")
+                    except Exception as encrypt_error:
+                        print(f"Error encrypting password: {encrypt_error}")
                 else:
                     print("Error: encrypt_password function not found in des_encryption module.")
             except Exception as e:
