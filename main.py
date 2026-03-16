@@ -5,7 +5,7 @@ import select
 import des_encryption
 import csv
 
-def timed_input(prompt, timeout=15):  # Enter timeout in seconds
+def timed_input(prompt, timeout=20):  # Enter timeout in seconds
     print(prompt, end='', flush=True)
     ready, _, _ = select.select([sys.stdin], [], [], timeout)
     if ready:
@@ -47,26 +47,22 @@ def generate_password(length, include_numbers=False, include_special=False):
 def existing_login(password):
     print("Viewing existing logins...")
     login_name = timed_input("Enter login name: ").lower()
-    try:
-        found = False
-        with open("dataFile.txt", "r") as f:
-            reader = csv.reader(f)
-            for row in reader:
-                if len(row) == 2:
-                    stored_login_name, encrypted_password = row
-                    if stored_login_name.lower() == login_name:
-                        try:
-                            decrypted_password = des_encryption.decrypt_password(encrypted_password, password)
-                            print("Decrypted password for login", login_name, "is:", decrypted_password)
-                            found = True
-                            break
-                        except Exception as decrypt_error:
-                            print(f"Error decrypting password: {decrypt_error}")
-                            continue
-        if not found:
-            print("Login not found.")
-    except FileNotFoundError:
-        print("Data file not found.")
+    found = False
+    with open("dataFile.txt", "r") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            stored_login_name, encrypted_password = row
+            if stored_login_name.lower() == login_name:
+                try:
+                    decrypted_password = des_encryption.decrypt_password(encrypted_password, password)
+                    print("Decrypted password for login", login_name, "is:", decrypted_password)
+                    found = True
+                    break
+                except Exception as decrypt_error:
+                    print(f"Error decrypting password: {decrypt_error}")
+                    continue
+    if not found:
+        print("Login not found.")
 
 def new_login(password):
     print("Creating a new login...")
@@ -95,7 +91,8 @@ def main():
         exit()
 
     while True:
-        print("\nWhat would you like to do? \nTo generate a new password, type 1. \nTo view an existing login, type 2.\nTo create a new login, type 3.")
+        print("\nWhat would you like to do? \nTo generate a new password, type 1." \
+        " \nTo view an existing login, type 2.\nTo create a new login, type 3.")
         choice = timed_input("Choice: ")
         if choice == "1":
             new_password()
