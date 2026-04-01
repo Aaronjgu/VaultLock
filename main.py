@@ -4,6 +4,8 @@ import sys
 import select
 import des_encryption
 import csv
+import hashlib
+import os
 
 def timed_input(prompt, timeout=20):  # Enter timeout in seconds
     print(prompt, end='', flush=True)
@@ -13,6 +15,59 @@ def timed_input(prompt, timeout=20):  # Enter timeout in seconds
     else:
         print("\nIdle timeout. Exiting.")
         exit()
+
+def checkMasterPassword(password):
+    with open("masterPassword.txt", "rb") as f:
+        data = f.read()
+        salt = data[:16]
+        stored_hash = data[16:]
+        hashed = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100000)
+        if hashed == stored_hash:
+            return True
+        else:
+            return False
+            exit()
+
+def setMasterPassword(old_password=None):
+    if old_password is None:
+        if os.path.exists("masterPassword.txt"):
+            old_password = timed_input("Enter current master password: ")
+            if not checkMasterPassword(old_password):
+                print("Current password incorrect.")
+                return
+    
+    while True:
+        password = timed_input("Enter new master password: ")
+        if len(password) == 16:
+            try:
+                int(password, 16)
+                break
+            except ValueError:
+                print("Password must be exactly 16 hex characters. Please try again.")
+        else:
+            print("Password must be exactly 16 characters long. Please try again.")
+    
+    # Decrypt existing passwords with old password and re-encrypt with new password
+    logins = []
+    if os.path.exists("dataFile.txt") and old_password:
+        with open("dataFile.txt", "r") as f:
+            reader = csv.reader(f)
+            for row in reader:
+                login_name, encrypted_password = row
+                decrypted = des_encryption.decrypt_password(encrypted_password, old_password)
+                logins.append((login_name, decrypted))
+        with open("dataFile.txt", "w", newline='') as f:
+            writer = csv.writer(f)
+            for login_name, decrypted_password in logins:
+                new_encrypted = des_encryption.encrypt_password(decrypted_password, password)
+                writer.writerow([login_name, new_encrypted])
+    
+    salt = os.urandom(16)
+    hashed = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100000)
+    with open("masterPassword.txt", "wb") as f:
+        f.write(salt + hashed)
+    print("Master password set successfully.")
+    return password
 
 def new_password():
     while True:
@@ -51,16 +106,17 @@ def existing_login(password):
     with open("dataFile.txt", "r") as f:
         reader = csv.reader(f)
         for row in reader:
-            stored_login_name, encrypted_password = row
-            if stored_login_name.lower() == login_name:
-                try:
+            encrypted_login_name, encrypted_password = row
+            try:
+                decrypted_login_name = des_encryption.decrypt_password(encrypted_login_name, password)
+                if decrypted_login_name.lower() == login_name:
                     decrypted_password = des_encryption.decrypt_password(encrypted_password, password)
                     print("Decrypted password for login", login_name, "is:", decrypted_password)
                     found = True
                     break
-                except Exception as decrypt_error:
-                    print(f"Error decrypting password: {decrypt_error}")
-                    continue
+            except Exception as decrypt_error:
+                print(f"Error decrypting: {decrypt_error}")
+                continue
     if not found:
         print("Login not found.")
 
@@ -69,30 +125,45 @@ def new_login(password):
     new_login = timed_input("Enter new login name: ")
     new_password_input = timed_input("Enter password: ")
     try:
-        try:
-            encrypted_password = des_encryption.encrypt_password(new_password_input, password)
-            print("Encrypted password:", encrypted_password)
-            with open("dataFile.txt", "a", newline='') as f:
-                writer = csv.writer(f)
-                writer.writerow([new_login, encrypted_password])
-            print("Login saved successfully.")
-        except Exception as encrypt_error:
-            print(f"Error encrypting password: {encrypt_error}")
+        encrypted_login_name = des_encryption.encrypt_password(new_login, password)
+        encrypted_password = des_encryption.encrypt_password(new_password_input, password)
+        print("Encrypted password:", encrypted_password)
+        with open("dataFile.txt", "a", newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow([encrypted_login_name, encrypted_password])
+        print("Login saved successfully.")
     except Exception as e:
         print(f"Error saving login: {e}")
 
-def main():
-    print("Welcome to VaultLock. Please enter your password.")
-    password = input("Password: ")
-    if password == "ABCDEF0123456789":
-        print("Access granted.")
-    else:
-        print("Access denied.")
-        exit()
+def change_master_password():
+    with open("masterPassword.txt", "rb") as f:
+        data = f.read()
+        salt = data[:16]
+        stored_hash = data[16:]
+        current = timed_input("Enter current master password: ")
+        hashed = hashlib.pbkdf2_hmac('sha256', current.encode(), salt, 100000)
+        if hashed == stored_hash:
+            return setMasterPassword(current)
+        else:
+            print("Current password incorrect.")
+            return None
 
+def main():
+    if not os.path.exists("masterPassword.txt"):
+        print("Welcome to VaultLock. Set up your master password.")
+        setMasterPassword()
+    else:
+        print("Welcome to VaultLock. Please enter your password.")
+        password = timed_input("Password: ")
+        if not checkMasterPassword(password):
+            print("Incorrect password. Exiting.")
+            exit()
+        else:
+            print("Login successful.")
+    
     while True:
         print("\nWhat would you like to do? \nTo generate a new password, type 1." \
-        " \nTo view an existing login, type 2.\nTo create a new login, type 3.")
+        " \nTo view an existing login, type 2.\nTo create a new login, type 3.\nTo change master password, type 4.")
         choice = timed_input("Choice: ")
         if choice == "1":
             new_password()
@@ -100,6 +171,10 @@ def main():
             existing_login(password)
         elif choice == "3":
             new_login(password)
+        elif choice == "4":
+            new_password = change_master_password()
+            if new_password:
+                password = new_password
         else:
             print("Invalid choice. Please try again.")
 
