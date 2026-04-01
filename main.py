@@ -4,6 +4,7 @@ import sys
 import select
 import des_encryption
 import csv
+import secrets
 
 def timed_input(prompt, timeout=20):  # Enter timeout in seconds
     print(prompt, end='', flush=True)
@@ -42,7 +43,7 @@ def generate_password(length, include_numbers=False, include_special=False):
         characters += string.digits
     if include_special:
         characters += string.punctuation
-    return ''.join(random.choice(characters) for _ in range(length))
+    return ''.join(secrets.choice(characters) for _ in range(length))
 
 def existing_login(password):
     print("Viewing existing logins...")
