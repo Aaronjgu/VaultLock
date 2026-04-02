@@ -29,11 +29,11 @@ def checkMasterPassword(password):
             return False
             exit()
 
-def setMasterPassword(old_password=None):
-    if old_password is None:
+def setMasterPassword(oldPassword=None):
+    if oldPassword is None:
         if os.path.exists("masterPassword.txt"):
-            old_password = timed_input("Enter current master password: ")
-            if not checkMasterPassword(old_password):
+            oldPassword = timed_input("Enter current master password: ")
+            if not checkMasterPassword(oldPassword):
                 print("Current password incorrect.")
                 return
     
@@ -46,16 +46,16 @@ def setMasterPassword(old_password=None):
             except ValueError:
                 print("Password must be exactly 16 hex characters. Please try again.")
         else:
-            print("Password must be exactly 16 characters long. Please try again.")
+            print("Password must be exactly 16 hex characters. Please try again.")
     
     # Decrypt existing passwords with old password and re-encrypt with new password
     logins = []
-    if os.path.exists("dataFile.txt") and old_password:
+    if os.path.exists("dataFile.txt") and oldPassword:
         with open("dataFile.txt", "r") as f:
             reader = csv.reader(f)
             for row in reader:
                 login_name, encrypted_password = row
-                decrypted = des_encryption.decrypt_password(encrypted_password, old_password)
+                decrypted = des_encryption.decrypt_password(encrypted_password, oldPassword)
                 logins.append((login_name, decrypted))
         with open("dataFile.txt", "w", newline='') as f:
             writer = csv.writer(f)
@@ -173,9 +173,9 @@ def main():
         elif choice == "3":
             new_login(password)
         elif choice == "4":
-            new_password = change_master_password()
-            if new_password:
-                password = new_password
+            newPasswordInput = change_master_password()
+            if newPasswordInput:
+                password = newPasswordInput
         else:
             print("Invalid choice. Please try again.")
 
