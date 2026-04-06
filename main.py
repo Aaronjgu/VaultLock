@@ -5,6 +5,7 @@ import select
 import des_encryption
 import csv
 import secrets
+import pwinput
 
 def timed_input(prompt, timeout=20):  # Enter timeout in seconds
     print(prompt, end='', flush=True)
@@ -68,7 +69,7 @@ def existing_login(password):
 def new_login(password):
     print("Creating a new login...")
     new_login = timed_input("Enter new login name: ")
-    new_password_input = timed_input("Enter password: ")
+    new_password_input = pwinput.pwinput("Enter password: ", mask="*")
     try:
         try:
             encrypted_password = des_encryption.encrypt_password(new_password_input, password)
@@ -84,7 +85,7 @@ def new_login(password):
 
 def main():
     print("Welcome to VaultLock. Please enter your password.")
-    password = input("Password: ")
+    password = pwinput.pwinput("Password: ")
     if password == "ABCDEF0123456789":
         print("Access granted.")
     else:
