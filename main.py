@@ -5,8 +5,12 @@ import select
 import des_encryption
 import csv
 import secrets
+import pwinput
 import hashlib
 import os
+import time
+import termios
+import tty
 
 def timed_input(prompt, timeout=20):  # Enter timeout in seconds
     print(prompt, end='', flush=True)
@@ -16,6 +20,39 @@ def timed_input(prompt, timeout=20):  # Enter timeout in seconds
     else:
         print("\nIdle timeout. Exiting.")
         exit()
+
+def timed_pwinput(prompt, timeout=20, mask='*'):
+    print(prompt, end='', flush=True)
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    password = ''
+    start_time = time.time()
+    try:
+        tty.setraw(fd)  # Disable line buffering and echo
+        while True:
+            # Check for input with a short timeout
+            ready, _, _ = select.select([sys.stdin], [], [], 0.1)
+            if ready:
+                char = sys.stdin.read(1)
+                if char in ('\n', '\r'):  # Enter key
+                    break
+                elif char == '\x7f':  # Backspace
+                    if password:
+                        password = password[:-1]
+                        sys.stdout.write('\b \b')  # Erase last mask char
+                        sys.stdout.flush()
+                else:
+                    password += char
+                    sys.stdout.write(mask)  # Mask with specified char
+                    sys.stdout.flush()
+            # Check timeout
+            if time.time() - start_time > timeout:
+                print("\nIdle timeout. Exiting.")
+                sys.exit()  # Or return None if you prefer not to exit
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)  # Restore terminal
+    print()  # New line after input
+    return password
 
 def checkMasterPassword(password):
     with open("masterPassword.txt", "rb") as f:
@@ -32,13 +69,13 @@ def checkMasterPassword(password):
 def setMasterPassword(oldPassword=None):
     if oldPassword is None:
         if os.path.exists("masterPassword.txt"):
-            oldPassword = timed_input("Enter current master password: ")
+            oldPassword = timed_pwinput("Enter current master password: ")
             if not checkMasterPassword(oldPassword):
                 print("Current password incorrect.")
                 return
     
     while True:
-        password = timed_input("Enter new master password: ")
+        password = timed_pwinput("Enter new master password: ")
         if len(password) == 16:
             try:
                 int(password, 16)
@@ -124,7 +161,7 @@ def existing_login(password):
 def new_login(password):
     print("Creating a new login...")
     new_login = timed_input("Enter new login name: ")
-    new_password_input = timed_input("Enter password: ")
+    new_password_input = timed_pwinput("Enter password: ", mask="*")
     try:
         encrypted_login_name = des_encryption.encrypt_password(new_login, password)
         encrypted_password = des_encryption.encrypt_password(new_password_input, password)
@@ -141,7 +178,7 @@ def change_master_password():
         data = f.read()
         salt = data[:16]
         stored_hash = data[16:]
-        current = timed_input("Enter current master password: ")
+        current = timed_pwinput("Enter current master password: ")
         hashed = hashlib.pbkdf2_hmac('sha256', current.encode(), salt, 100000)
         if hashed == stored_hash:
             return setMasterPassword(current)
@@ -155,7 +192,7 @@ def main():
         setMasterPassword()
     else:
         print("Welcome to VaultLock. Please enter your password.")
-        password = timed_input("Password: ")
+        password = timed_pwinput("Password: ")
         if not checkMasterPassword(password):
             print("Incorrect password. Exiting.")
             exit()

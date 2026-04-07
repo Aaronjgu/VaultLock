@@ -378,9 +378,9 @@ def decrypt_password(ciphertext_hex, key_hex):
 
 
 if __name__ == "__main__":
-    master_key = "FEDCBA9876543210" 
+    master_key = "ABCDEF0123456789" 
     
-    my_password = "Password123!" 
+    my_password = decrypt_password("D3D5CB6A0523C0D7", master_key)
 
     print(f"Original Password: {my_password}")
     
