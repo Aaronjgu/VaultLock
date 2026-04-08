@@ -8,6 +8,7 @@ import secrets
 import pwinput
 import hashlib
 import os
+import stat
 import time
 import termios
 import tty
@@ -104,6 +105,7 @@ def setMasterPassword(oldPassword=None):
     hashed = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100000)
     with open("masterPassword.txt", "wb") as f:
         f.write(salt + hashed)
+    setValidPermissions("masterPassword.txt")
     print("Master password set successfully.")
     return password
 
@@ -169,6 +171,7 @@ def new_login(password):
         with open("dataFile.txt", "a", newline='') as f:
             writer = csv.writer(f)
             writer.writerow([encrypted_login_name, encrypted_password])
+        setValidPermissions("dataFile.txt")
         print("Login saved successfully.")
     except Exception as e:
         print(f"Error saving login: {e}")
@@ -186,7 +189,31 @@ def change_master_password():
             print("Current password incorrect.")
             return None
 
+def setValidPermissions(path):
+    if os.name != "posix":
+        print("WARNING: file permissions checking on Windows not implemented")
+        return
+
+    if not os.path.exists(path):
+        return
+    if not os.path.isfile(path):
+        print(f"ERROR: the path {path!r} exists but is not a file")
+        return
+
+    statinfo = os.stat(path)
+    # check file ownership
+    if statinfo.st_uid != os.getuid():
+        print(f"ERROR: the file {path!r} is not owned by the current user; exiting")
+        exit(1)
+    # ensure file permissions are correct
+    os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)
+
+
 def main():
+    # if the files already exist, make sure they are owned by the current user and have correct permissions
+    setValidPermissions("masterPassword.txt")
+    setValidPermissions("dataFile.txt")
+
     if not os.path.exists("masterPassword.txt"):
         print("Welcome to VaultLock. Set up your master password.")
         setMasterPassword()
@@ -198,7 +225,7 @@ def main():
             exit()
         else:
             print("Login successful.")
-    
+
     while True:
         print("\nWhat would you like to do? \nTo generate a new password, type 1." \
         " \nTo view an existing login, type 2.\nTo create a new login, type 3.\nTo change master password, type 4.")
