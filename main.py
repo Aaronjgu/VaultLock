@@ -1,11 +1,9 @@
-import random
 import string
 import sys
 import select
 import des_encryption
 import csv
 import secrets
-import pwinput
 import hashlib
 import os
 import stat
@@ -49,7 +47,7 @@ def timed_pwinput(prompt, timeout=20, mask='*'):
             # Check timeout
             if time.time() - start_time > timeout:
                 print("\nIdle timeout. Exiting.")
-                sys.exit()  # Or return None if you prefer not to exit
+                sys.exit()
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)  # Restore terminal
     print()  # New line after input
@@ -68,13 +66,6 @@ def checkMasterPassword(password):
             exit()
 
 def setMasterPassword(oldPassword=None):
-    if oldPassword is None:
-        if os.path.exists("masterPassword.txt"):
-            oldPassword = timed_pwinput("Enter current master password: ")
-            if not checkMasterPassword(oldPassword):
-                print("Current password incorrect.")
-                return
-    
     while True:
         password = timed_pwinput("Enter new master password: ")
         if len(password) == 16:
@@ -216,7 +207,7 @@ def main():
 
     if not os.path.exists("masterPassword.txt"):
         print("Welcome to VaultLock. Set up your master password.")
-        setMasterPassword()
+        password = setMasterPassword()
     else:
         print("Welcome to VaultLock. Please enter your password.")
         password = timed_pwinput("Password: ")
